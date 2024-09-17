@@ -16,7 +16,7 @@ from transformers.models.mistral.modeling_mistral import (
     repeat_kv,
 )
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 logging.getLogger("coremltools").setLevel(logging.ERROR)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -166,6 +166,7 @@ def export() -> None:
     traced_model = torch.jit.trace(torch_model, [input_ids, causal_mask])
 
     # Convert traced TorchScript to Core ML format
+    print("Converting from TorchScript to Core ML format")
     query_length = ct.RangeDim(lower_bound=1, upper_bound=max_context_size, default=1)
     end_step_dim = ct.RangeDim(lower_bound=1, upper_bound=max_context_size, default=1)
     inputs: List[ct.TensorType] = [
@@ -189,16 +190,18 @@ def export() -> None:
     ]
 
     # Convert model with FP16 precision
+    print("Converting with FP16 precision")
     mlmodel_fp16: ct.MLModel = ct.convert(
         traced_model,
         inputs=inputs,
         outputs=outputs,
         states=states,
-        minimum_deployment_target=ct.target.iOS18,
+        minimum_deployment_target=ct.target.macOS15,
         skip_model_load=True,
     )
 
     # Block-wise quantize model weights to int4
+    print("Quantizing to int4")
     op_config = ct.optimize.coreml.OpLinearQuantizerConfig(
         mode="linear_symmetric",
         dtype="int4",
