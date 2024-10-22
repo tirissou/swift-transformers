@@ -29,12 +29,11 @@ def export() -> None:
     # Starting sequence, max additional tokens to generate
     input_ids: torch.Tensor = torch.zeros((1, 2), dtype=torch.int32)
     max_additional_tokens = torch.tensor([128], dtype=torch.int32)
-    # causal_mask: torch.Tensor = torch.zeros((1, 1, 2, 5), dtype=torch.float32)
     helpers.replace_linear_with_conv2d(torch_model)
     
     import pdb
     pdb.set_trace()
-    traced_model = torch.jit.trace(torch_model, [input_ids, causal_mask])
+    traced_model = torch.jit.trace(torch_model, [input_ids, max_additional_tokens])
 
     # Convert traced TorchScript to Core ML format
     print("Converting from TorchScript to Core ML format")
@@ -47,11 +46,6 @@ def export() -> None:
             dtype=np.long,
             name="maxNewTokens",
         )
-        # ct.TensorType(
-        #     shape=(1, 1, query_length, end_step_dim),
-        #     dtype=np.float16,
-        #     name="causalMask",
-        # ),
     ]
     outputs: List[ct.TensorType] = [ct.TensorType(dtype=np.float16, name="logits")]
     states: List[ct.StateType] = [
@@ -64,13 +58,17 @@ def export() -> None:
             name="valueCache",
         ),
         ct.StateType(
+            wrapped_type=ct.TensorType(shape=(1), dtype=np.long),
+            name="tokensSeen",
+        ),
+        ct.StateType(
             # TODO don't hardcode these shapes
             wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
             name="cacheLength",
         ),
         ct.StateType(
             wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
-            name="valueCache",
+            name="cacheStartIndex",
         ),
         # TODO add new states
     ]

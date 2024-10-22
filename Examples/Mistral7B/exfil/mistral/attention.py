@@ -24,6 +24,7 @@ class SliceUpdateMistralAttention(MistralAttention):
         self,
         hidden_states: torch.Tensor,
         attention_mask: torch.Tensor,
+        cache_position: torch.Tensor,
         position_ids: Optional[torch.LongTensor] = None,
         past_key_value: Optional[SliceUpdateKeyValueCache] = None,
         **kwargs,
@@ -97,6 +98,7 @@ class SliceUpdateMistralAttention(MistralAttention):
                 vi,
                 self.layer_idx,
                 head_idx,
+                cache_position,
             )
 
             # Append updated caches
