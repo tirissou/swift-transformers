@@ -45,14 +45,10 @@ class SliceUpdateMistralAttention(MistralAttention):
         #
         #######################################################################
 
-        # bsz, q_len, #heads x head_size
-        hidden_states = hidden_states.transpose(1, 2)
-
         # **Convert from BSC to BCIS (Batch, Channels, Height, Width).**
         # If (bsz, seq, #heads x head_size) -> (bsz, seq, 1, #heads x head_size)
-        if hidden_states.dim() == 3:
-            hidden_states = hidden_states.unsqueeze(2) 
-        # IDEAL (bsz, #heads x head_size, 1, seq_len)
+        if hidden_states.dim == 3:
+            hidden_states = hidden_states.transpose(1, 2).unsqueeze(2) 
 
         # **Linear projections using Conv2D layers.**
         q: Tensor = self.q_proj(hidden_states)
@@ -70,12 +66,12 @@ class SliceUpdateMistralAttention(MistralAttention):
         # (1, 2, 128)
         cos = cos.transpose(1, 2).unsqueeze(2)
         sin = sin.transpose(1, 2).unsqueeze(2)
-        # confirmed (1, 128, 1, 2)
+        # confirmed (1, 128, 1, seq)
 
         # Apply rotary embeddings to each head individually
         mh_q_rot = []
         mh_k_rot = []
-        # TODO increase 
+
         for qi, ki in zip(mh_q, cycle(mh_k)):
             # Apply rotary position embeddings
             qi_rot, ki_rot = apply_rotary_pos_emb_head(qi, ki, cos, sin)
@@ -95,7 +91,7 @@ class SliceUpdateMistralAttention(MistralAttention):
             start = head_idx * self.head_dim
             k_cache, v_cache = past_key_value.update(
                 ki,
-                vi,
+                vi.to(torch.half),
                 self.layer_idx,
                 head_idx,
                 cache_position,
@@ -114,8 +110,8 @@ class SliceUpdateMistralAttention(MistralAttention):
             vi = vi.unsqueeze(0)
 
             # **Compute attention scores using einsum**
-            pdb.set_trace()
-            attn_scores = torch.einsum('bhcq,bkch->bcqk', qi, ki) * self.scale  # (bsz, total_seq_len, 1, seq_len)
+            # NOTE h is denoting head dimension in below einsums
+            attn_scores = torch.einsum('bhcq,bkch->bkcq', qi, ki) * self.scale  # (bsz, total_seq_len, 1, seq_len)
 
             # **Apply attention mask**
             # attn_scores = attn_scores + attention_mask[:, :, None, :]
@@ -125,19 +121,17 @@ class SliceUpdateMistralAttention(MistralAttention):
             attn_probs = self.dropout(attn_probs)
 
             # **Compute attention output using einsum**
-            attn_output = torch.einsum('bhcq,bkch->bcqk', attn_probs, vi)  # (bsz, head_dim, 1, seq_len)
+            # vi bhck
+            attn_output = torch.einsum('bhck,bkcq->bhcq', vi, attn_probs)
+
             attn_outputs.append(attn_output)
 
         # **Concatenate heads and project output**
-        attn_output = torch.cat(attn_outputs, dim=1)  # (bsz, num_heads * head_dim, 1, seq_len)
-
-        # Reshape for output projection
-        attn_output = attn_output.permute(0, 1, 3, 2)  # (bsz, num_heads * head_dim, seq_len, 1)
-        attn_output = self.o_proj(attn_output)  # (bsz, hidden_size, seq_len, 1)
+        # (bsz, num_heads * head_dim, 1, seq_len)
+        attn_output = torch.cat(attn_outputs, dim=1)  
+        attn_output = self.o_proj(attn_output.to(torch.float)) 
 
         # Reshape back to original format
-        attn_output = attn_output.squeeze(-1).permute(0, 2, 1)  # (bsz, seq_len, hidden_size)
+        # attn_output = attn_output.squeeze(-1).permute(0, 2, 1)  # (bsz, seq_len, hidden_size)
 
         return attn_output, None, None
-
-

@@ -17,11 +17,11 @@ class SliceUpdateKeyValueCache(Cache):
         super().__init__()
 
         self.max_length = Tensor([max_length]).to(torch.long)
-        self.cacheSequenceLength: Tensor
+        # self.cacheSequenceLength: Tensor
         self.keyCache: Tensor
         self.valueCache: Tensor
         
-        self.register_buffer('cacheSequenceLength', torch.zeros([1], dtype=torch.long))
+        # self.register_buffer('cacheSequenceLength', torch.zeros([1], dtype=torch.long))
         self.register_buffer('keyCache', torch.full(shape, torch.nan, dtype=dtype))
         self.register_buffer('valueCache', torch.full(shape, torch.nan, dtype=dtype))
 
@@ -42,7 +42,7 @@ class SliceUpdateKeyValueCache(Cache):
         v_state = v_state[..., -self.max_length:]
 
         # calculate where to start reading from AFTER updating
-        highest_position = torch.max(cache_position)
+        highest_position = torch.max(cache_position) + 1
         start = torch.where(
             highest_position > self.max_length, 
             highest_position % self.max_length, 
@@ -66,11 +66,11 @@ class SliceUpdateKeyValueCache(Cache):
             ), dim=-1
         )
 
-        self.cacheSequenceLength = highest_position
+        # self.cacheSequenceLength = highest_position
 
         return k_cache, v_cache
-
-    def get_seq_length(self, _: int | None = 0) -> Tensor:
-        """Get the sequence length of the cache as 0-dim Tensor"""
-        return torch.min(torch.max(self.cacheSequenceLength), self.max_length)
-
+    #
+    # def get_seq_length(self, _: int | None = 0) -> Tensor:
+    #     """Get the sequence length of the cache as 0-dim Tensor"""
+    #     return torch.min(torch.max(self.cacheSequenceLength), self.max_length)
+    #

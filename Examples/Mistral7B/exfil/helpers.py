@@ -47,8 +47,6 @@ def rotate_half(x: Tensor, dim=-1):
     xs = x.split(half_size, dim=dim)
     x1 = x[..., : x.shape[dim] // 2]
     x2 = x[..., x.shape[dim] // 2 :]
-    assert x1.shape[dim] == half_size
-    assert x2.shape[dim] == half_size
     return torch.cat((-xs[1], xs[0]), dim=dim)
 
 def apply_rotary_pos_emb_head(q, k, cos, sin):
@@ -57,6 +55,7 @@ def apply_rotary_pos_emb_head(q, k, cos, sin):
     # IDEAL q, k: (batch, seq, 1, head_dim)
     q_rot = (q * cos) + (rotate_half(q) * sin)
     k_rot = (k * cos) + (rotate_half(k) * sin)
+    # assert q_rot.dtype == torch.half # FAILS
     return q_rot, k_rot
 
 

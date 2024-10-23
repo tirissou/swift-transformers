@@ -27,7 +27,7 @@ def export() -> None:
 
     # What inputs should the model have? 
     # Starting sequence, max additional tokens to generate
-    input_ids: torch.Tensor = torch.zeros((1, 2), dtype=torch.int32)
+    input_ids: torch.Tensor = torch.tensor([[3429, 3458]], dtype=torch.long)
     max_additional_tokens = torch.tensor([128], dtype=torch.int32)
     helpers.replace_linear_with_conv2d(torch_model)
     
@@ -58,18 +58,18 @@ def export() -> None:
             name="valueCache",
         ),
         ct.StateType(
-            wrapped_type=ct.TensorType(shape=(1), dtype=np.long),
-            name="tokensSeen",
+            wrapped_type=ct.TensorType(shape=(1,), dtype=np.long),
+            name="cacheSequenceLength",
         ),
-        ct.StateType(
-            # TODO don't hardcode these shapes
-            wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
-            name="cacheLength",
-        ),
-        ct.StateType(
-            wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
-            name="cacheStartIndex",
-        ),
+        # ct.StateType(
+        #     # TODO don't hardcode these shapes
+        #     wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
+        #     name="cacheLength",
+        # ),
+        # ct.StateType(
+        #     wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
+        #     name="cacheStartIndex",
+        # ),
         # TODO add new states
     ]
 
