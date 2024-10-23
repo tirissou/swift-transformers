@@ -7,7 +7,7 @@ from transformers.models.mistral.modeling_mistral import (
     MistralConfig,
     # MistralMLP,
     MistralPreTrainedModel,
-    MistralRMSNorm,
+    # MistralRMSNorm,
 )
 from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
@@ -32,6 +32,27 @@ from ..cache import SliceUpdateKeyValueCache
 from ..helpers import map_weights_linear_to_conv2d
 
 logger = logging.get_logger(__name__)
+
+
+class MistralRMSNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-6):
+        """
+        MistralRMSNorm is equivalent to T5LayerNorm
+        """
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.variance_epsilon = eps
+
+    def forward(self, hidden_states, dim=-1):
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(torch.float32)
+        variance = hidden_states.pow(2).mean(dim, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+        return self.weight.reshape(1, self.hidden_size, 1, 1) * hidden_states.to(input_dtype)
+
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
 class MistralMLP(nn.Module):
@@ -601,6 +622,8 @@ class StatefulMistralForCausalLM(torch.nn.Module):
         self.kv_cache = SliceUpdateKeyValueCache(shape=self.kv_cache_shape)
         self._all_positions = torch.arange(max_sequence_size)
         self.register_buffer('tokensSeen', torch.tensor([0], dtype=torch.long))
+        self.register_buffer('keyCache', self.kv_cache.keyCache)
+        self.register_buffer('valueCache', self.kv_cache.valueCache)
 
     @torch.no_grad()
     def forward(

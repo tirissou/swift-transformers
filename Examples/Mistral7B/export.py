@@ -4,6 +4,7 @@ import warnings
 from typing import List, Optional, Tuple
 
 import coremltools as ct
+from coremltools.converters import RangeDim
 import numpy as np
 import torch
 from transformers.cache_utils import Cache
@@ -21,6 +22,7 @@ logging.getLogger("coremltools").setLevel(logging.ERROR)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3
+# MODEL_ID: str = "mistralai/Mistral-Small-Instruct-2409"
 MODEL_ID: str = "mistralai/Mistral-7B-Instruct-v0.3"
 METADATA_TOKENIZER: str = "co.huggingface.exporters.name"
 
@@ -129,7 +131,7 @@ class StatefulMistralForCausalLM(torch.nn.Module):
 
         # Register KV cache buffers to be recognized as Core ML states
         config: MistralConfig = self.model.config
-        self.kv_cache_shape: Tuple[int, ...] = (
+        self.kv_cache_shape: Tuple[int | RangeDim, ...] = (
             config.num_hidden_layers,
             batch_size,
             config.num_key_value_heads,
@@ -198,6 +200,7 @@ def export() -> None:
         states=states,
         minimum_deployment_target=ct.target.macOS15,
         skip_model_load=True,
+        compute_units=ct.ComputeUnit.CPU_AND_NE
     )
 
     # Block-wise quantize model weights to int4
