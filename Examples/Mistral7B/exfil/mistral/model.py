@@ -289,7 +289,7 @@ class MistralModel(MistralPreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
-        hidden_states = self.norm(hidden_states)
+        hidden_states = self.norm(hidden_states, 1)
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -629,13 +629,13 @@ class StatefulMistralForCausalLM(torch.nn.Module):
     def forward(
         self,
         input_ids: torch.LongTensor,
-        causal_mask: torch.Tensor,
+        max_additional_tokens: torch.Tensor,
     ) -> torch.Tensor:
         # Compute past seen tokens used for updating key/value cache slices
         cache_position = self._all_positions[self.tokensSeen:self.tokensSeen+input_ids.shape[-1]]
         rval = self.model(
             input_ids,
-            attention_mask=causal_mask,
+            # attention_mask=causal_mask,
             past_key_values=self.kv_cache,
             use_cache=True,
             cache_position=cache_position,

@@ -83,7 +83,7 @@ def export() -> None:
         minimum_deployment_target=ct.target.macOS15,
         skip_model_load=True,
         compute_units=ct.ComputeUnit.ALL,
-        compute_precision=ct.transform.FP16ComputePrecision,
+        compute_precision=ct.transform.FP16ComputePrecision(),
     )
 
 
