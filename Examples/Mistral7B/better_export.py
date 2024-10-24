@@ -43,7 +43,7 @@ def export() -> None:
         ct.TensorType(shape=(1, query_length), dtype=np.int32, name="inputIds"),
         ct.TensorType(
             shape=(1,),
-            dtype=np.long,
+            dtype=np.int32,
             name="maxNewTokens",
         )
     ]
@@ -58,7 +58,7 @@ def export() -> None:
             name="valueCache",
         ),
         ct.StateType(
-            wrapped_type=ct.TensorType(shape=(1,), dtype=np.long),
+            wrapped_type=ct.TensorType(shape=(1,), dtype=np.int32),
             name="cacheSequenceLength",
         ),
         # ct.StateType(
