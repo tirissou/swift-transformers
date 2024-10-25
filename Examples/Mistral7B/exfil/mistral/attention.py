@@ -46,9 +46,8 @@ class SliceUpdateMistralAttention(MistralAttention):
         #######################################################################
 
         # **Convert from BSC to BCIS (Batch, Channels, Height, Width).**
-        # If (bsz, seq, #heads x head_size) -> (bsz, seq, 1, #heads x head_size)
-        if hidden_states.dim == 3:
-            hidden_states = hidden_states.transpose(1, 2).unsqueeze(2) 
+        # If (bsz, seq, #heads x head_size) -> (bsz, head_dim, 1, seq)
+        assert hidden_states.dim() = 4
 
         # **Linear projections using Conv2D layers.**
         q: Tensor = self.q_proj(hidden_states)
@@ -56,9 +55,10 @@ class SliceUpdateMistralAttention(MistralAttention):
         v: Tensor  = self.v_proj(hidden_states)
         # all (1, hid_dim, 1, seq)
 
-        mh_q = q.split(self.head_dim, dim=1)  # List of tensors: (bsz, head_dim, seq_len, 1)
-        mh_v = v.split(self.head_dim, dim=1)
-        mh_k = k.split(self.head_dim, dim=1)
+        splitsize = int(self.head_dim)
+        mh_q = q.split(splitsize, dim=1)  # List of tensors: (bsz, head_dim, seq_len, 1)
+        mh_v = v.split(splitsize, dim=1)
+        mh_k = k.split(splitsize, dim=1)
         # n_kv_heads * (batch, 128, 1, seq)
 
         # Calculate rotation for this point in the sequence (not per head)
@@ -74,7 +74,7 @@ class SliceUpdateMistralAttention(MistralAttention):
 
         for qi, ki in zip(mh_q, cycle(mh_k)):
             # Apply rotary position embeddings
-            qi_rot, ki_rot = apply_rotary_pos_emb_head(qi, ki, cos, sin)
+            qi_rot, ki_rot = apply_rotary_pos_emb_head(qi, ki, cos, sin, head_dim=self.head_dim)
 
             mh_q_rot.append(qi_rot.to(torch.half))
             mh_k_rot.append(ki_rot.to(torch.half))

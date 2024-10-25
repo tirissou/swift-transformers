@@ -41,20 +41,21 @@ def map_weights_linear_to_conv2d(state_dict):
             if len(state_dict[k].shape) == 2:
                 state_dict[k] = state_dict[k][:, :, None, None]
 
-def rotate_half(x: Tensor, dim=-1):
+def rotate_half(x: Tensor, half_size, dim=-1):
     """Rotates half the hidden dims of the input."""
-    half_size = x.shape[dim] // 2
+    half_size = half_size // 2
     xs = x.split(half_size, dim=dim)
     x1 = x[..., : x.shape[dim] // 2]
     x2 = x[..., x.shape[dim] // 2 :]
     return torch.cat((-xs[1], xs[0]), dim=dim)
 
-def apply_rotary_pos_emb_head(q, k, cos, sin):
+def apply_rotary_pos_emb_head(q, k, cos, sin, head_dim):
     """Rotates hidden head dimensions"""
     # TODO VERIFY
     # IDEAL q, k: (batch, seq, 1, head_dim)
-    q_rot = (q * cos) + (rotate_half(q) * sin)
-    k_rot = (k * cos) + (rotate_half(k) * sin)
+    assert head_dim is not None
+    q_rot = (q * cos) + (rotate_half(q, head_dim, dim=1) * sin)
+    k_rot = (k * cos) + (rotate_half(k, head_dim, dim=1) * sin)
     # assert q_rot.dtype == torch.half # FAILS
     return q_rot, k_rot
 

@@ -17,8 +17,8 @@ class SliceUpdateKeyValueCache(Cache):
         super().__init__()
 
         self.max_length = Tensor([max_length]).to(torch.long)
-        self.keyCache: Tensor = torch.full(shape, torch.nan, dtype=dtype)
-        self.valueCache: Tensor = torch.full(shape, torch.nan, dtype=dtype)
+        self.keyCache: Tensor = torch.zeros(shape, dtype=dtype)
+        self.valueCache: Tensor = torch.zeros(shape, dtype=dtype)
 
     def update(
         self,
