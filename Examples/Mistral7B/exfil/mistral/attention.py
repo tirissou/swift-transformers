@@ -3,7 +3,7 @@ import math
 import pdb
 from torch import nn
 from typing import List, Optional, Tuple
-from torch.functional import Tensor
+from torch import Tensor
 import torch
 from transformers.models.mistral.modeling_mistral import (
     MistralAttention,
@@ -47,7 +47,7 @@ class SliceUpdateMistralAttention(MistralAttention):
 
         # **Convert from BSC to BCIS (Batch, Channels, Height, Width).**
         # If (bsz, seq, #heads x head_size) -> (bsz, head_dim, 1, seq)
-        assert hidden_states.dim() = 4
+        assert hidden_states.dim() == 4
 
         # **Linear projections using Conv2D layers.**
         q: Tensor = self.q_proj(hidden_states)

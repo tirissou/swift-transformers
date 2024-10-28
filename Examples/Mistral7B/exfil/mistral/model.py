@@ -68,7 +68,6 @@ class MistralMLP(nn.Module):
     def forward(self, hidden_state):
         # **Reshape to BCIS format for Conv2d layers**
         assert hidden_state.dim() == 4
-
         gate_output = self.gate_proj(hidden_state)  # Shape: (batch_size, intermediate_size, seq_len, 1)
         up_output = self.up_proj(hidden_state)      # Shape: (batch_size, intermediate_size, seq_len, 1)
         gate_output = self.act_fn(gate_output)      # Shape remains the same
@@ -119,6 +118,7 @@ class MistralDecoderLayer(nn.Module):
                 Arbitrary kwargs to be ignored, used for FSDP and other methods that injects code
                 into the model
         """
+        # pdb.set_trace()
         residual = hidden_states
 
         hidden_states = self.input_layernorm(hidden_states, 1)
@@ -198,6 +198,8 @@ class MistralModel(MistralPreTrainedModel):
         return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
+        pdb.set_trace()
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -488,6 +490,7 @@ class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
 
+        pdb.set_trace()
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -632,10 +635,10 @@ class StatefulMistralForCausalLM(torch.nn.Module):
         max_additional_tokens: torch.Tensor,
     ) -> torch.Tensor:
         # Compute past seen tokens used for updating key/value cache slices
+        pdb.set_trace()
         cache_position = self._all_positions[self.tokensSeen:self.tokensSeen+input_ids.shape[-1]]
         rval = self.model(
             input_ids,
-            # attention_mask=causal_mask,
             past_key_values=self.kv_cache,
             use_cache=True,
             cache_position=cache_position,

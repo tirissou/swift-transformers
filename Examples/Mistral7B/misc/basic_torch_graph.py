@@ -1,4 +1,7 @@
 import torch
+import coremltools as ct
+from typing import List
+import numpy as np
 
 class DynamicSizeArange(torch.nn.Module):
     """
@@ -10,9 +13,27 @@ class DynamicSizeArange(torch.nn.Module):
         self.register_buffer('counter', torch.zeros([1], dtype=torch.long))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        index = self.counter % x.shape
+        index = self.counter % x.shape[0]
         rval = torch.concat((x[self.counter:], x[:self.counter]))
         self.counter += 1
         return rval
 
 o = DynamicSizeArange()
+query_length = ct.RangeDim(lower_bound=1, upper_bound=30, default=1)
+inputs: List[ct.TensorType] = [
+        ct.TensorType(shape=((query_length,)), dtype=np.int32, name="inputIds"),
+]
+outputs: List[ct.TensorType] = [ct.TensorType(dtype=np.float16, name="logits")]
+model = torch.jit.trace(o, torch.zeros(5))
+model.eval()
+converted = ct.convert(
+        model,
+        inputs=inputs,
+        outputs=outputs,
+        # states=states,
+        minimum_deployment_target=ct.target.macOS15,
+        skip_model_load=True,
+        compute_units=ct.ComputeUnit.CPU_AND_NE,
+        debug=True
+        # compute_precision=ct.transform.FP16ComputePrecision(),
+    )
