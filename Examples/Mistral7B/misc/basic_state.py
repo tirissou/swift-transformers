@@ -49,3 +49,9 @@ mlmodel_fp16 = ct.convert(
         # compute_precision=ct.transform.FP16ComputePrecision(),
     )
 mlmodel_fp16.save("basicstate.mlpackage")
+
+state = mlmodel_fp16.make_state()
+
+print(mlmodel_fp16.predict({"input_array": test_input.numpy()}, state))
+
+
