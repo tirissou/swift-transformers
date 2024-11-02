@@ -9,7 +9,7 @@ from transformers.models.mistral.modeling_mistral import (
     MistralAttention,
     MistralConfig,
 )
-from ..cache import SliceUpdateKeyValueCache
+from ..cache import SlidingCache
 from ..helpers import apply_rotary_pos_emb_head
 
 class SliceUpdateMistralAttention(MistralAttention):
@@ -26,7 +26,7 @@ class SliceUpdateMistralAttention(MistralAttention):
         attention_mask: torch.Tensor,
         cache_position: torch.Tensor,
         position_ids: Optional[torch.LongTensor] = None,
-        past_key_value: Optional[SliceUpdateKeyValueCache] = None,
+        past_key_value: Optional[SlidingCache] = None,
         **kwargs,
     ) -> Tuple[torch.Tensor | None, ...]:
 

@@ -31,8 +31,8 @@ def export() -> None:
     max_additional_tokens = torch.tensor([128], dtype=torch.int32)
     helpers.replace_linear_with_conv2d(torch_model)
     
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
     traced_model = torch.jit.trace(torch_model, [input_ids, max_additional_tokens])
 
     # Convert traced TorchScript to Core ML format
@@ -61,16 +61,6 @@ def export() -> None:
             wrapped_type=ct.TensorType(shape=(1,), dtype=np.int32),
             name="tokensSeen",
         ),
-        # ct.StateType(
-        #     # TODO don't hardcode these shapes
-        #     wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
-        #     name="cacheLength",
-        # ),
-        # ct.StateType(
-        #     wrapped_type=ct.TensorType(shape=(32, 32, 1), dtype=np.long),
-        #     name="cacheStartIndex",
-        # ),
-        # TODO add new states
     ]
 
     # Convert model with FP16 precision

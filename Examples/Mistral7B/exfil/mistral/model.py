@@ -28,7 +28,7 @@ from transformers.utils import (
 from transformers.activations import ACT2FN
 
 from .attention import SliceUpdateMistralAttention
-from ..cache import SliceUpdateKeyValueCache
+from ..cache import SlidingCache
 from ..helpers import map_weights_linear_to_conv2d
 
 logger = logging.get_logger(__name__)
@@ -73,7 +73,6 @@ class MistralMLP(nn.Module):
         gate_output = self.act_fn(gate_output)      # Shape remains the same
         hidden_state = gate_output * up_output      # Shape: (batch_size, intermediate_size, seq_len, 1)
         hidden_state = self.down_proj(hidden_state) # Shape: (batch_size, hidden_size, seq_len, 1)
-
         return hidden_state
 
 
@@ -172,7 +171,7 @@ class MistralModel(MistralPreTrainedModel):
             [MistralDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
         self._attn_implementation = config._attn_implementation
-        self.norm = MistralRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.norm = MistralRMSNorm(config.hidden_size, eps=config.rms_norm_eps,)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
@@ -198,7 +197,7 @@ class MistralModel(MistralPreTrainedModel):
         return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
-        pdb.set_trace()
+        # pdb.set_trace()
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -319,7 +318,7 @@ class MistralModel(MistralPreTrainedModel):
         use_cache: bool,
         output_attentions: bool,
     ):
-        pdb.set_trace()
+        # pdb.set_trace()
         if self._attn_implementation == "flash_attention_2":
             if attention_mask is not None and use_cache:
                 is_padding_right = attention_mask[:, -1].sum().item() != input_tensor.size()[0]
@@ -490,7 +489,7 @@ class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
 
-        pdb.set_trace()
+        # pdb.set_trace()
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -618,11 +617,12 @@ class StatefulMistralForCausalLM(torch.nn.Module):
         self.kv_cache_shape: Tuple[int | RangeDim, ...] = (
             config.num_hidden_layers,
             config.num_attention_heads,
+            config.batch_size,
             config.hidden_size // config.num_attention_heads,
             1,
             max_context_size,
         )
-        self.kv_cache = SliceUpdateKeyValueCache(shape=self.kv_cache_shape)
+        self.kv_cache = SlidingCache(shape=self.kv_cache_shape)
         self._all_positions = torch.arange(max_sequence_size)
         self.register_buffer('tokensSeen', torch.tensor([0], dtype=torch.long))
         self.register_buffer('keyCache', self.kv_cache.keyCache)
@@ -635,7 +635,7 @@ class StatefulMistralForCausalLM(torch.nn.Module):
         max_additional_tokens: torch.Tensor,
     ) -> torch.Tensor:
         # Compute past seen tokens used for updating key/value cache slices
-        pdb.set_trace()
+        # pdb.set_trace()
         cache_position = self._all_positions[self.tokensSeen:self.tokensSeen+input_ids.shape[-1]]
         rval = self.model(
             input_ids,
