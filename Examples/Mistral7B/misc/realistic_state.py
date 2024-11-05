@@ -10,29 +10,31 @@ class DynamicSizeArange(torch.nn.Module):
     A basic usage of cond based on dynamic shape predicate.
     """
 
-    def __init__(self, size=8, max_sequence_length=2048):
+    def __init__(self, size=8, max_sequence_length=2048, buffer = 1, hidden_size=128):
         super().__init__()
         self.size = size
         self.max_sequence_length = max_sequence_length
         self.register_buffer('counter', torch.tensor([0], dtype=torch.half))
-        self.register_buffer('cache', torch.zeros(1024, 1, self.max_sequence_length, 1, 128, dtype=torch.half))
+        self.register_buffer('cache', torch.zeros(1024, self.max_sequence_length, buffer, 1, hidden_size, dtype=torch.half))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        index: Tensor = torch.remainder(self.counter, self.max_sequence_length).int()
+        # index: Tensor = torch.remainder(self.counter, self.max_sequence_length)
         # print(f"{index=}")
-        self.cache[:, :, index[0], :, :] = x
+        self.cache[0, (torch.remainder(self.counter, self.max_sequence_length))[0].int()] = x
         self.counter += 1
-        start = torch.where(self.counter > self.max_sequence_length, index + 1, 0)
-        index = torch.max(torch.concat((start, torch.tensor([1]))))
+        start = torch.where(self.counter > self.max_sequence_length, (torch.remainder(self.counter + 1, self.max_sequence_length)), 0)
+        index = torch.max(torch.concat((start, torch.tensor([1])))).int()
         # print(f"{start=}")
         # print(f"{index=}")
         # return self.cache + 0
 
         rval = torch.where(
             start == 0,
-            self.cache[0, :, :],
-            torch.concat((self.cache[0, :, index:], self.cache[0, :, :index],), dim=1)
+            self.cache[0],
+            torch.concat((self.cache[0, index:], self.cache[0, :index],), dim=0)
         )
+        # 
+        rval = rval.permute(1, 0, 2, 3)
 
         rval = torch.einsum(
             'abcd,adce->abce', rval, rval.transpose(1,3)
@@ -41,6 +43,9 @@ class DynamicSizeArange(torch.nn.Module):
         rval = torch.einsum(
             'abcd,adce->abce', rval, rval.transpose(1,3)
         )
+
+
+
         return rval
 
 
@@ -49,19 +54,21 @@ class DynamicSizeArange(torch.nn.Module):
 
 
 # test_input = torch.arange(4, dtype=torch.half)
-test_input = torch.rand(1, 1, 1, 128, dtype=torch.half) * 0.25
-
-buffer_size = 8
+buffer_size = 1
+hidden_size = 128
 max_sequence_length = 2048
-torch_model = DynamicSizeArange(buffer_size, max_sequence_length)
-query_length = ct.RangeDim(lower_bound=1, upper_bound=32, default=1)
+
+test_input = torch.rand(1, buffer_size, 1, hidden_size, dtype=torch.half) * 0.25
+
+
+torch_model = DynamicSizeArange(buffer_size, max_sequence_length, buffer_size, hidden_size)
 inputs: List[ct.TensorType] = [
-    ct.TensorType(shape=ct.Shape(shape=(1, 1, 1, 128)), name="input_array", dtype=np.half)
+    ct.TensorType(shape=ct.Shape(shape=(1, buffer_size, 1, hidden_size)), name="input_array", dtype=np.half)
 ]
 
 states: List[ct.StateType] = [
     ct.StateType(
-        wrapped_type=ct.TensorType(shape=(1024, 1, max_sequence_length, 1, 128), dtype=np.half),
+        wrapped_type=ct.TensorType(shape=(1024, max_sequence_length, buffer_size, 1, hidden_size), dtype=np.half),
         name="cache",
     ),
     ct.StateType(
